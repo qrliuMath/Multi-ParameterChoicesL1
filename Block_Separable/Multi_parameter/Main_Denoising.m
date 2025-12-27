@@ -42,7 +42,7 @@ group_info = [group_info;L(end)+1];  % length(group_info) = num_group + 1;
 paraFPPA.group_info = group_info;
 
 %% Parameter choice stategy 
-paraFPPA.TargetTSLs = [512,248,400,640,1200,1600,2000,3600,7800,12000];
+paraFPPA.TargetTSLs = [512,25,10,15,14,17,37,62,146,262];
 paraFPPA.TargetSL = sum(paraFPPA.TargetTSLs);
 Lambda = gpuArray.zeros(size(paraFPPA.TargetTSLs));
 for i = 1:num_group
@@ -86,3 +86,56 @@ fprintf('Ratio = %.2f%% \n', Result.Ratio)
 fprintf('MSE = %.4e\n', Result.MSE)
 fname = sprintf('Result_SL-%d.mat',Result.SL);
 save(fname,'sigma','paraFPPA','SNR','Result')
+
+%% Figure
+figure
+plot(x,signal,'Linewidth',1);
+axis([0 1 -0.6 0.6])
+yticks(-0.6:0.2:0.6)
+grid on;
+ax = gca;
+ax.FontSize = 14; 
+
+figure
+plot(x,signal_noi,'Linewidth',1);
+axis([0 1 -0.6 0.6])
+yticks(-0.6:0.2:0.6)
+grid on;
+ax = gca;
+ax.FontSize = 14; 
+
+figure
+plot(x,signal,'Linewidth',1);
+axis([0 1 -0.6 0.8])
+yticks(-0.6:0.2:0.8)
+hold on
+plot(x,RecSignal,'r','Linewidth',1);
+leg = legend('Original signal','Denoised signal','Location', 'northwest',...
+     'Position', [0.165 0.76 0.34 0.15]);  
+ax = gca;
+ax.FontSize = 14; 
+leg.FontSize = 12;
+grid on;
+
+% Define magnification area
+zoom_x = [0.76, 0.79];     
+zoom_y = [0.38, 0.44];     
+rectangle('Position',[zoom_x(1) zoom_y(1) zoom_x(2)-zoom_x(1) zoom_y(2)-zoom_y(1)],...
+          'EdgeColor',[0 0 0],'LineWidth',2,'LineStyle',':')
+axes('Position',[0.54 0.76 0.34 0.15])
+box on
+hold on
+plot(x,signal,'Linewidth',1)
+plot(x,RecSignal,'r','Linewidth',1)
+xlim([0.76, 0.79])    
+ylim([0.38, 0.44])  
+ax2 = gca;
+ax2.FontSize = 10;
+ax2.XTick = []; 
+ax2.YTick = []; 
+annotation('arrow', [0.725 0.70], [0.72 0.80],'Color', [0 0 0],...
+           'LineWidth', 2, ...
+           'HeadStyle', 'vback3', ...
+           'HeadLength', 8, ...
+           'HeadWidth', 8, ...
+           'LineStyle', ':');

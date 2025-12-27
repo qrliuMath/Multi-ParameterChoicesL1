@@ -6,7 +6,7 @@
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  
 clear,clc,close all
-disp('Compound Sparse Denoising')
+disp('Verification of Assumptions (A1)¨C(A3)')
 disp('----------------------------------------------')
 format short
 dbstop if error
@@ -57,7 +57,7 @@ paraFPPA.FGO_norm = norm(gather(FGO),2); %  convergence condition FGO_norm <1
 
 %% Choose initial lambda
 tic;
-Initial_lambda = [0.5,0.08];     
+Initial_lambda = [0.6,0.073];     
 paraFPPA.lambda = gpuArray(Initial_lambda); 
 
 %% Iterative scheme choosing multiple regularization parameters 
@@ -69,17 +69,22 @@ Gamma = gpuArray.zeros(1,num_group);
 s = gpuArray.zeros(1,num_group);
 Result.NUM = 0;
 NumExp = 100;         % number of experiments
+
+% Create variables to store iteration history
+IterationHistory = struct();  % Store all iteration history
 for LastTag = 0:1:NumExp
     fprintf('\n-------------------- Tag=%d -------------------\n',LastTag)
     [w,a,b] = Differentiable_FPPA(N,H,H_prime,c_H,B_prime,E,paraFPPA);
     Result.SLs = zeros(1,num_group);
+    Result.Supports = cell(1,num_group);
     for k = 1:1:num_group
         Result.SLs(k) = nnz(w(paraFPPA.group_info(k):paraFPPA.group_info(k+1)-1));
+        Result.Supports{k} = find(w(paraFPPA.group_info(k):paraFPPA.group_info(k+1)-1));
     end
     Result.Ratios = Result.SLs./L*100;
     Result.SL = nnz(w);
     paraFPPA.Tag = LastTag;
-    fname = sprintf('TargetTSLs%d_%d_Tag%d-.mat',paraFPPA.TargetTSLs,paraFPPA.Tag);
+
     %% Show accuracy
     SOLUTION = B_prime*w;
     bn = nan + zeros(d, 1);                              % bn : nan's to extend f to length N
@@ -93,8 +98,18 @@ for LastTag = 0:1:NumExp
     fprintf('Ratios = [%.2f%%,%.2f%%] \n', Result.Ratios)
     fprintf('MSE = %.2e\n', Result.MSE)
     Result.NUM = Result.NUM + 1;
-    save(fname,'SOLUTION','w','paraFPPA','Result')
-    epsilon = paraFPPA.num_group;
+
+    %% Store current iteration results
+    IterationHistory(Result.NUM).Tag = LastTag;
+    IterationHistory(Result.NUM).Iteration = Result.NUM;
+    IterationHistory(Result.NUM).lambda_star = gather(paraFPPA.lambda);
+    IterationHistory(Result.NUM).Support = Result.Supports;
+    IterationHistory(Result.NUM).SLs = Result.SLs;
+    IterationHistory(Result.NUM).SL = Result.SL;
+    IterationHistory(Result.NUM).Ratios = Result.Ratios;
+    IterationHistory(Result.NUM).MSE = Result.MSE;
+
+    epsilon = 0 ;
     if sum(abs(Result.SLs-paraFPPA.TargetTSLs))<=epsilon
         break;
     end
@@ -117,46 +132,25 @@ for LastTag = 0:1:NumExp
                 Result.Ratios = Result.SLs./L*100;
                 Result.SL = nnz(w);
                 Result.NUM = Result.NUM + 1;
+
                 fprintf('lambda_star = %f\n', paraFPPA.lambda)
                 fprintf('SLs = [%d, %d]\n', Result.SLs)
-                fname = sprintf('TargetTSLs%d_%d_Tag%d-%d_%d.mat',paraFPPA.TargetTSLs,paraFPPA.Tag,j,i);
-                save(fname,'SOLUTION','w','paraFPPA','Result','Sort_gamma')
-                if Result.SLs(j)<=paraFPPA.TargetTSLs(j) 
+                if Result.SLs(j)<=paraFPPA.TargetTSLs(j)
                     break;
                 end
             end
         end
     end
+    IterationHistory(Result.NUM).Sort_gamma = Sort_gamma;
 end
+
+for j = 1:paraFPPA.num_group
+    RHS = B_prime'*a + b;
+    Sort_gamma{j} = sort(abs(RHS(group_info(j):group_info(j+1)-1)));
+end
+IterationHistory(Result.NUM).Sort_gamma = Sort_gamma;
 time = toc;
 save time time
 
 %% Figure
-figure
-plot(t,g,'Linewidth',1);
-axis([0 300 -2 4])
-yticks(-2:2:4)
-grid on;
-ax = gca;
-ax.FontSize = 14; 
-
-figure
-plot(t,y,'Linewidth',1);
-axis([0 300 -2 4])
-yticks(-2:2:4)
-grid on;
-ax = gca;
-ax.FontSize = 14; 
-
-figure
-plot(t,g,'Linewidth',1);
-axis([0 300 -2 4])
-yticks(-2:2:4)
-hold on
-RecSignal = SOLUTION + f_tilde;
-plot(t(d+1:N-d),RecSignal(d+1:N-d),'r','Linewidth',1);
-leg = legend('Original signal','Denoised signal');  
-ax = gca;
-ax.FontSize = 14; 
-leg.FontSize = 10;
-grid on;
+Figure_Show

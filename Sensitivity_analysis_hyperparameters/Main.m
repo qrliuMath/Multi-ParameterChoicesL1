@@ -6,9 +6,9 @@
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  
 clear,clc,close all
-disp('Compound Sparse Denoising')
+disp('Sensitivity analysis of hyperparameters')
 disp('----------------------------------------------')
-format short
+format long
 dbstop if error
 
 %% Initialize signal 
@@ -45,7 +45,7 @@ Generate_B_and_B_prime
 %-------------------------------------------------------
 
 %% Choose parameter in FPPA algorithm
-paraFPPA.TargetTSLs = [20,30];     %  targeted sparsity levels
+paraFPPA.TargetTSLs = [80,60];     %  targeted sparsity levels
 paraFPPA.TargetSSL = sum(paraFPPA.TargetTSLs);
 paraFPPA.MaxIter = 1000;
 paraFPPA.alpha = 0.1;    
@@ -57,7 +57,7 @@ paraFPPA.FGO_norm = norm(gather(FGO),2); %  convergence condition FGO_norm <1
 
 %% Choose initial lambda
 tic;
-Initial_lambda = [0.5,0.08];     
+Initial_lambda = [0.5,1.0];     
 paraFPPA.lambda = gpuArray(Initial_lambda); 
 
 %% Iterative scheme choosing multiple regularization parameters 
@@ -88,12 +88,13 @@ for LastTag = 0:1:NumExp
     err = err(d+1:N-d);  % truncate NaNs.
     Result.MSE = mean(err.^2);
     disp('****** Results ******')
-    fprintf('lambda_star = %f\n', paraFPPA.lambda)
+    fprintf('lambda_star = %.8f\n', paraFPPA.lambda)
     fprintf('SLs = [%d, %d]\n', Result.SLs)
     fprintf('Ratios = [%.2f%%,%.2f%%] \n', Result.Ratios)
     fprintf('MSE = %.2e\n', Result.MSE)
     Result.NUM = Result.NUM + 1;
     save(fname,'SOLUTION','w','paraFPPA','Result')
+    
     epsilon = paraFPPA.num_group;
     if sum(abs(Result.SLs-paraFPPA.TargetTSLs))<=epsilon
         break;
@@ -117,7 +118,7 @@ for LastTag = 0:1:NumExp
                 Result.Ratios = Result.SLs./L*100;
                 Result.SL = nnz(w);
                 Result.NUM = Result.NUM + 1;
-                fprintf('lambda_star = %f\n', paraFPPA.lambda)
+                fprintf('lambda_star = %.8f\n', paraFPPA.lambda)
                 fprintf('SLs = [%d, %d]\n', Result.SLs)
                 fname = sprintf('TargetTSLs%d_%d_Tag%d-%d_%d.mat',paraFPPA.TargetTSLs,paraFPPA.Tag,j,i);
                 save(fname,'SOLUTION','w','paraFPPA','Result','Sort_gamma')
@@ -130,33 +131,3 @@ for LastTag = 0:1:NumExp
 end
 time = toc;
 save time time
-
-%% Figure
-figure
-plot(t,g,'Linewidth',1);
-axis([0 300 -2 4])
-yticks(-2:2:4)
-grid on;
-ax = gca;
-ax.FontSize = 14; 
-
-figure
-plot(t,y,'Linewidth',1);
-axis([0 300 -2 4])
-yticks(-2:2:4)
-grid on;
-ax = gca;
-ax.FontSize = 14; 
-
-figure
-plot(t,g,'Linewidth',1);
-axis([0 300 -2 4])
-yticks(-2:2:4)
-hold on
-RecSignal = SOLUTION + f_tilde;
-plot(t(d+1:N-d),RecSignal(d+1:N-d),'r','Linewidth',1);
-leg = legend('Original signal','Denoised signal');  
-ax = gca;
-ax.FontSize = 14; 
-leg.FontSize = 10;
-grid on;

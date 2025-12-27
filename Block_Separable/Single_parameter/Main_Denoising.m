@@ -31,7 +31,7 @@ paraFPPA.DecLev = 9;     % decomposion level  (Lev-DecLev is the most coarst lev
 
 %% Parameter choice
 sort_gamma = sort(abs(Wx));
-paraFPPA.TargetTSLs = 60000;         % targetted sparsity levels   
+paraFPPA.TargetTSLs = 1100;         % targetted sparsity levels   
 paraFPPA.lambda = sort_gamma(length(sort_gamma)-paraFPPA.TargetTSLs);
 
 %% Numerical solution by FPPA
